@@ -1,18 +1,19 @@
-cd "C:\Users\HP\Downloads\TP2"
+cd ""  // Put the path here <----
+
 use benin.dta, clear
 *ssc install moremata, replace
 *ssc install bidensity
 
-*Esta base incluye los resultados sobre los efectos de bienestar de la eliminación de aranceles calculados en el paper "Trading-off the income gains and the inequality costs of trade policy", Journal of International Economics. En concreto, el ejercicio postula la eliminación de todos los aranceles, sobre todos los productos, y calcula los efectos sobre precios y luego gastos e ingresos. 
 
 
+* This dataset includes results regarding the welfare effects of tariff elimination, calculated in the paper "Trading-off the income gains and the inequality costs of trade policy" (Journal of International Economics). Specifically, the exercise posits the elimination of all tariffs on all products and calculates the effects on prices, followed by the effects on expenditures and income.
 
-* Ajusto la escala para que coincida con el de las filminas
+* Adjust the scale to match that of the slides
 replace welfare_effect_net = welfare_effect_net * 100
 label variable lpce0 "log per capita expenditure"
 label variable welfare_effect_net "welfare effects"
 
-* Calculo las densidades y polinomios
+* Calculate the densities and polynomials
 bidensity welfare_effect_net lpce0 [aw=weight], level(15) saving("bidensity_BEN.dta", replace) mname(BEN)
 getmata BEN_x, force
 lpoly welfare_effect_net lpce0 [aw=weight], at(BEN_x) nosc generate(BEN_s) se(BEN_se)
@@ -22,7 +23,7 @@ ge BEN_05 = BEN_s - 1.96*BEN_se
 ge BEN_95 = BEN_s + 1.96*BEN_se
 save "lpoly_BEN.dta", replace
 
-* Preparo la base para el gráfico
+* Prepare the database for the chart
 use "bidensity_BEN.dta", clear
 rename _lpce0 BEN_x
 sort BEN_x
@@ -30,7 +31,7 @@ merge m:1 BEN_x using "lpoly_BEN.dta"
 drop _merge
 sort _welf BEN_x
 
-* Grafico
+* Graphic
 twoway (contourline _d _welf BEN_x, colorlines scolor(ltblue) ecolor(blue) levels(15) clegend(off) plegend(off)) ///
        (line BEN_s BEN_x, sort lcolor(red) lwidth(medthick)) ///
        (line BEN_05 BEN_x, sort lcolor(red) lpattern(shortdash) lwidth(medthin)) ///
@@ -42,7 +43,7 @@ twoway (contourline _d _welf BEN_x, colorlines scolor(ltblue) ecolor(blue) level
 graph export "BEN_unequal.pdf", as(pdf) replace
 
 
-* 2° grafico
+* 2° graphic
 use "benin.dta", clear
 tempname memhold
 postfile `memhold' epsilon g_epsilon using "tradeoff_simple.dta", replace
