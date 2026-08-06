@@ -1,0 +1,28 @@
+	(1)
+VARIABLES	price
+	
+rooms	48,401***
+	(1,730)
+bathrooms	226,821***
+	(3,452)
+surface_total	10.48***
+	(3.348)
+min_linear_dist_bar	58,814***
+	(1,607)
+min_linear_dist_cinema	-6,999***
+	(980.5)
+min_linear_dist_subway	14,032***
+	(949.9)
+min_linear_dist_greensp	-45,574***
+	(1,329)
+min_linear_dist_trash	4,266***
+	(1,007)
+min_linear_dist_roof	-20,627***
+	(1,473)
+Constant	-185,010***
+	(5,000)
+	
+Observations	80,601
+R-squared	0.488
+Robust standard errors in parentheses	
+*** p<0.01, ** p<0.05, * p<0.1	

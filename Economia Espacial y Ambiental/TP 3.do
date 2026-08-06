@@ -1,116 +1,111 @@
-capture cd "C:\Users\HP\Downloads\TP3 - Espacial"
-capture cd ""
-capture cd ""
-capture cd ""
+**********************************************
+**************** Assignment 3 ****************
+**********************************************
+
+capture cd ""  // Put the path here <----
+
 use "base_properati", clear
+*ssc install geodist
+*ssc install outreg2
 
 
 
 *********************************************
-****************** Parte A ******************
+****************** Part A ******************
 *********************************************
-ssc install geodist
-ssc install outreg2
 
-* Subte
+* Subways
 merge m:1 id_merge using "coord_subtes_wide"
 drop _merge
 forvalues i = 1/90 {
-	geodist lat lon lat_subte`i' long_subte`i', gen(distancia_subte`i')
+	geodist lat lon lat_subte`i' long_subte`i', gen(dist_subway`i')
 } 
-egen dist_lineal_min_subte = rowmin(distancia_subte*)
+egen min_linear_dist_subway = rowmin(dist_subway*)
 drop lat_subte*
 drop long_subte*
-drop distancia_subte*
+drop dist_subway*
 save "Properati_distancias", replace
 
-* Cines
+* Cinemas
 merge m:1 id_merge using "coord_cines_wide"
 drop _merge
 forvalues i = 1/22 {
-	geodist lat lon lat_cine`i' long_cine`i', gen(distancia_cine`i')
+	geodist lat lon lat_cine`i' long_cine`i', gen(dist_cinema`i')
 } 
-egen dist_lineal_min_cine = rowmin(distancia_cine*)
+egen min_linear_dist_cinema = rowmin(dist_cinema*)
 drop lat_cine*
 drop long_cine*
-drop distancia_cine*
+drop dist_cinema*
 save "Properati_distancias", replace
 
-* Bares
+* Bars
 merge m:1 id_merge using "coord_bares_wide"
 drop _merge
 forvalues i = 1/248 {
-	geodist lat lon lat_bar`i' long_bar`i', gen(distancia_bar`i')
+	geodist lat lon lat_bar`i' long_bar`i', gen(dist_bar`i')
 } 
-egen dist_lineal_min_bar = rowmin(distancia_bar*)
+egen min_linear_dist_bar = rowmin(dist_bar*)
 drop lat_bar*
 drop long_bar*
-drop distancia_bar*
+drop dist_bar*
 save "Properati_distancias", replace
 
-* Regresion del modelo
-use "Properati_distancias", clear
-local estructura "rooms bathrooms surface_total"
-local locacion "dist_lineal_min_bar dist_lineal_min_cine dist_lineal_min_subte"
-regress price `estructura' `locacion', robust
-outreg2 using "Reg_niv.txt", replace
+* Regression of the model
+local structure "rooms bathrooms surface_total"
+local location "min_linear_dist_bar min_linear_dist_cinema min_linear_dist_subway"
+regress price `structure' `location', robust
+outreg2 using "Reg_lev.txt", replace
 
 gen lprice = ln(price)
-regress lprice `estructura' `locacion', robust
+regress lprice `structure' `location', robust
 outreg2 using "Reg_log.txt", replace
 
 
 
 *********************************************
-****************** Parte B ******************
+****************** Part B ******************
 *********************************************
-use "Properati_distancias", clear
 
-* Residuos
+* Trash
 merge m:1 id_merge using "coord_residuos_wide"
 drop _merge
 forvalues i = 1/139 {
-	geodist lat lon lat_residuos_`i' long_residuos_`i', gen(distancia_residuos`i')
+	geodist lat lon lat_residuos_`i' long_residuos_`i', gen(dist_trash`i')
 } 
-egen dist_lineal_min_residuos = rowmin(distancia_residuos*)
+egen min_linear_dist_trash = rowmin(dist_trash*)
 drop lat_residuos*
 drop long_residuos*
-drop distancia_residuos*
+drop dist_trash*
 save "Properati_distancias", replace
 
-* Espacios verdes
+* Green spaces
 merge m:1 id_merge using "coord_espverde_wide"
 drop _merge
 forvalues i = 1/102 {
-	geodist lat lon lat_espverde`i' long_espverde`i', gen(distancia_espverde`i')
+	geodist lat lon lat_espverde`i' long_espverde`i', gen(dist_greensp`i')
 } 
-egen dist_lineal_min_espverde = rowmin(distancia_espverde*)
+egen min_linear_dist_greensp = rowmin(dist_greensp*)
 drop lat_espverde*
 drop long_espverde*
-drop distancia_espverde*
+drop dist_greensp*
 save "Properati_distancias", replace
 
-*Techos
+* Roofs
 merge m:1 id_merge using "coord_techos_wide"
 drop _merge
 forvalues i = 1/81 {
-	geodist lat lon lat_techo`i' long_techo`i', gen(distancia_techo`i')
+	geodist lat lon lat_techo`i' long_techo`i', gen(dist_roof`i')
 } 
-egen dist_lineal_min_techo = rowmin(distancia_techo*)
+egen min_linear_dist_roof = rowmin(dist_roof*)
 drop lat_techo*
 drop long_techo*
-drop distancia_techo*
+drop dist_roof*
 save "Properati_distancias", replace
 
-* Regresion del modelo
-use "Properati_distancias", clear
-local estructura "rooms bathrooms surface_total"
-local locacion "dist_lineal_min_bar dist_lineal_min_cine dist_lineal_min_subte"
-local medioamb "dist_lineal_min_espverde dist_lineal_min_residuos dist_lineal_min_techo"
-regress price `estructura' `locacion' `medioamb', robust
-outreg2 using "Reg_niv_B.txt", replace
+* Regression of the model
+local environment "min_linear_dist_greensp min_linear_dist_trash min_linear_dist_roof"
+regress price `structure' `location' `environment', robust
+outreg2 using "Reg_lev_B.txt", replace
 
-gen lprice = ln(price)
-regress lprice `estructura' `locacion' `medioamb', robust
+regress lprice `structure' `location' `environment', robust
 outreg2 using "Reg_log_B.txt", replace
-
