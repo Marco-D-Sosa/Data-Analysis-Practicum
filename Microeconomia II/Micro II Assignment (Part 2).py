@@ -2,7 +2,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
-path = r"C:\Users\HP\Downloads\Data-Analysis-Practicum\Microeconomia II\data"  # Put the path here <----
+path = r"."  # Put the path here <----
 
 
 
