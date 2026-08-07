@@ -1,39 +1,27 @@
-
-
-*** Abre base de datos EPH 2024 Q3 y computa variables
-
 clear all
+capture cd "" // Put the path here <----
 
-capture import excel using "C:\Users\renat\OneDrive\Escritorio\Eco. internacional\TP2\usu_individual_T324.xlsx", firstrow clear
-capture cd "C:\Users\HP\Downloads\TP2 - Evidencia empirica"
-capture import excel using "C:\Users\HP\Downloads\TP2 - Evidencia empirica\usu_individual_T324.xlsx", firstrow clear
 
-* Me quedo con las variables que voy a usar 
+
+* Here are the variables to use
 keep P21 PP3E_TOT PP07H CAT_OCUP PP04B_COD ESTADO PONDERA
 
+* Weighting factor
+gen weight = PONDERA
+label var weight "Weighting factor"
 
-* Factor de ponderacion
-gen pondera = PONDERA
-label var pondera "factor de ponderacion"
-
-* Identifico Ocupados
-gen ocupado=.
-replace ocupado=0 if (ESTADO==2 | ESTADO==3)
-replace ocupado=1 if ESTADO==1
-label var ocupado "=1 si ocupado"
-tab ocupado
+* Identify employed persons
+gen employed=.
+replace employed=0 if (ESTADO==2 | ESTADO==3)
+replace employed=1 if ESTADO==1
+label var employed "=1 if employed"
+tab employed
 more
 
-* Me quedo sólo con empleados (asalariados) en el análisis
-keep if CAT_OCUP==3
-/* CAT_OCUP     1= Patrón
-		2= Cuenta propia
-		3= Obrero o empleado,
-   		4= Trabajador familiar sin remuneración
-		9= Ns/Nr       */
-		
+* I'm limiting the analysis to employees (wage earners) only
+keep if CAT_OCUP==3	
 
-* Identifico Sector de actividad a un dígito del CIIU (los que muestra INDEC en CGI -Cuenta de generación del ingreso e insumo de mano de obra-)
+* Identify the economic activity sector at the one-digit ISIC level (those shown by INDEC in the CGI—Income Generation and Labor Input Account)
 gen sector1d=.
 replace sector1d=1 if (PP04B_COD>=1 & PP04B_COD<=2) | (PP04B_COD>=101 & PP04B_COD<=200) | (PP04B_COD==8102)
 replace sector1d=2 if (PP04B_COD==3 | PP04B_COD==300)
@@ -58,47 +46,39 @@ label define sector1d 1 "Agricultura, Ganadería, Caza y Silvicultura" 2 "Pesca"
 label values sector1d sector1d
 drop if sector1d==17
 
-* Identificamos trabajadores formales por: Derecho a percibir una jubilación 
+* Identify formal workers by: The right to receive a retirement pension
+gen rpension=.
+replace rpension=1 if PP07H==1
+replace rpension=0 if PP07H==2
+label var rpension "Right to a pension"
+tab rpension
 
-/* PP07H: ¿Por ese trabajo tiene descuento jubilatorio?
-             1=si
-	     2=no   */
-gen djubila=.
-replace djubila=1 if PP07H==1
-replace djubila=0 if PP07H==2
-label var djubila "Derecho a jubilacion"
-tab djubila 
-
-
-* Ingreso en la ocupación principal - monetario
+* Income from main occupation – monetary
 replace P21=. if P21<0  
-gen ip_m=P21 
-label var ip_m "ing oc. ppal.-mon."
+gen im_m=P21
+label var im_m "income main occup. - monetary"
 
-* Horas trabajadas en el trabajo principal (semanal)
-
-/* PP3E_TOT: total de horas que trabajó en la semana en la ocupación principal */
-
+* Hours worked in the main job (weekly)
+* PP3E_TOT: total hours worked during the week in the main occupation
 gen hstrp=PP3E_TOT
 replace hstrp=. if hstrp<0
 replace hstrp=. if hstrp>150
 more
-label var hstrp "horas trabajadas ocup. ppal."
+label var hstrp "hours worked main occup."
 
-* Ingresos laborales horarios en la ocupación principal - monetario
+* Hourly labor income from main occupation – monetary
 gen wage_m=ip_m/(hstrp*4)
-label var wage_m "ing. hora oc. ppal-monetario"
-
+label var wage_m "hour income main occup. - monetary"
 
 
 
 *----------------------------------------------------------------------
 
-/* Remuneración media de cada sector y formalidad */
-egen wage_sector_formal = mean(wage_m) if djubila==1, by(sector1d)
-egen wage_sector_informal = mean(wage_m) if djubila==0, by(sector1d)
+* Average remuneration by sector and formality status
+egen wage_sector_formal = mean(wage_m) if rpension==1, by(sector1d)
+egen wage_sector_informal = mean(wage_m) if rpension==0, by(sector1d)
 
-/* (Desagregado) Generamos la penalidad */
+* (Itemized) We generate the penalty.
 ta wage_sector_formal
 ta wage_sector_informal
 
@@ -108,8 +88,8 @@ forvalues i = 1/16 {
 	scalar mean_formal= r(mean)
 	quietly sum wage_sector_informal if sector1d==`i'
 	scalar mean_informal= r(mean)
-	scalar indice = (mean_formal - mean_informal) / mean_formal
-	di "Índice de penalidad de informalidad para el sector `i' (`nombre_sector'):" indice
+	scalar index = (mean_formal - mean_informal) / mean_formal
+	di "Informality penalty index for the sector `i' (`nombre_sector'):" index
 }
 
 forvalues i = 1/16 {
@@ -118,33 +98,33 @@ forvalues i = 1/16 {
 	scalar mean_formal= r(mean)
 	quietly sum wage_sector_informal if sector1d==`i'
 	scalar mean_informal= r(mean)
-	scalar indice = mean_informal / mean_formal
-	di "Ratio salario medio informal/salario medio formal de sector `i' (`nombre_sector'):" indice
+	scalar index = mean_informal / mean_formal
+	di "Ratio of average informal wage to average formal sector wage `i' (`nombre_sector'):" index
 }
 
 
 
-/*(Desagregado) Calculo de dotación factorial: total de horas asalariados y no asalariados, se toman horas laborales para computar el ratio de dotaciones informales/formales */
+* (Disaggregated) Factor endowment calculation: total hours worked by wage earners and non-wage earners; working hours are used to compute the ratio of informal to formal endowments
 
 forvalues i = 1/16 {
     di "-----"
     local nombre_sector : label sector1d `i'
 	di "Sector: `i' (`nombre_sector')"
 
-    qui sum hstrp if djubila == 0 & sector1d == `i'
+    qui sum hstrp if rpension == 0 & sector1d == `i'
     local informal = r(sum)*4
     di "Horas mensuales (informales): `informal'"
 
-    qui sum hstrp if djubila == 1 & sector1d == `i'
+    qui sum hstrp if rpension == 1 & sector1d == `i'
     local formal = r(sum)*4
-    di "Horas mensuales (formales): `formal'"
+    di "Monthly hours (formal): `formal'"
 	
-	di "Ratio dotación laboral informal/dotación laboral formal:" `informal'/`formal'
+	di "Ratio of informal employment to formal employment:" `informal'/`formal'
 
     di "-----"
 }
 
-/* Para ajustar el ratio de dotación por la productividad, en este caso el ratio de salarios medios, lo multiplicamos por el ratio de salarios medios */
+* To adjust the staffing ratio for productivity—in this case, the average wage ratio—we multiply it by the average wage ratio
 forvalues i = 1/16 {
 	di "-----"
     di "Sector: `i' (`nombre_sector')"
@@ -154,24 +134,24 @@ forvalues i = 1/16 {
 	local mean_formal= r(mean)
 	quietly sum wage_sector_informal if sector1d==`i'
 	local mean_informal= r(mean)
-	di "Ratio salario medio informal/salario medio formal de sector `i' (`nombre_sector'):" `mean_informal'/`mean_formal'
+	di "Ratio of average informal wage to average formal sector wage `i' (`nombre_sector'):" `mean_informal'/`mean_formal'
 
-    qui sum hstrp if djubila == 0 & sector1d == `i'
+    qui sum hstrp if rpension == 0 & sector1d == `i'
     local informal = r(sum)*4
-    di "Horas mensuales (informales): `informal'"
-    qui sum hstrp if djubila == 1 & sector1d == `i'
+    di "Monthly hours (informal): `informal'"
+    qui sum hstrp if rpension == 1 & sector1d == `i'
     local formal = r(sum)*4
-    di "Horas mensuales (formales): `formal'"
-	di "Ratio dotación laboral informal/dotación laboral formal:" `informal'/`formal'
+    di "Monthly hours (formal): `formal'"
+	di "Ratio of informal employment to formal employment:" `informal'/`formal'
 
-	di "Dotación ajustada por productividad (salarios) del sector `nombre_sector' : " (`mean_informal'/`mean_formal')*(`informal'/`formal')
+	di "Sector productivity-adjusted staffing (wages) `nombre_sector' : " (`mean_informal'/`mean_formal')*(`informal'/`formal')
 	
     di "-----"
 }
 
 mat D = J(16,1,.)
 
-/* Para ajustar el ratio de dotación por la productividad, en este caso el ratio de salarios medios, lo multiplicamos por el índice de penalidad de informalidad */
+* To adjust the staffing ratio for productivity—in this case, the average wage ratio—we multiply it by the informality penalty index
 forvalues i = 1/16 {
 	di "-----"
     di "Sector: `i' (`nombre_sector')"
@@ -181,18 +161,17 @@ forvalues i = 1/16 {
 	local mean_formal= r(mean)
 	qui sum wage_sector_informal if sector1d==`i'
 	local mean_informal= r(mean)
-	di "Índice de penalidad de informalidad para el sector `i' (`nombre_sector'):" (`mean_formal'-`mean_informal')/`mean_formal'
-	
+	di "Informality penalty index for the sector `i' (`nombre_sector'):" (`mean_formal'-`mean_informal')/`mean_formal'
 
-    qui sum hstrp if djubila == 0 & sector1d == `i'
+    qui sum hstrp if rpension == 0 & sector1d == `i'
     local informal = r(sum)*4
-    di "Horas mensuales (informales): `informal'"
-    qui sum hstrp if djubila == 1 & sector1d == `i'
+    di "Monthly hours (informal): `informal'"
+    qui sum hstrp if rpension == 1 & sector1d == `i'
     local formal = r(sum)*4
-    di "Horas mensuales (formales): `formal'"
-	di "Ratio dotación laboral informal/dotación laboral formal:" `informal'/`formal'
+    di "Monthly hours (formal): `formal'"
+	di "Ratio of informal employment to formal employment:" `informal'/`formal'
 
-	di "Dotación ajustada por productividad (salarios) del sector `nombre_sector' : " (`mean_formal'-`mean_informal')/`mean_formal'*(`informal'/`formal')
+	di "Sector productivity-adjusted staffing (wages) `nombre_sector' : " (`mean_formal'-`mean_informal')/`mean_formal'*(`informal'/`formal')
 	mat D[`i',1] = (`mean_formal'-`mean_informal')/`mean_formal'*(`informal'/`formal')
     di "-----"
 }
@@ -201,5 +180,5 @@ forvalues i = 1/16 {
 preserve
    drop _all
    svmat D
-   export excel using "TP 2 punto 3", sheetmodify sheet("Punto D") cell(B2)
+   export excel using "Assignment2 Point3", sheetmodify sheet("Point D") cell(B2)
 restore
