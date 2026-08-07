@@ -1,36 +1,35 @@
 clear all
 set more off
-capture cd "C:\"
-capture cd "C:\"
-capture cd "C:\Users\HP\Downloads\TP1 - Internacional"
-capture cd "C:\Users\renat\OneDrive\Escritorio\Eco. internacional\TP1"
+capture cd "." // Put the path here <----
+
 use "datos_bilateral"
 
 
 
-/*PREGUNTA 2
+/*QUESTION 2
 
-2.1. Especificar tres principales socios comerciales de cada país en los años 2000 y 2019, detallar volumen de comercio. ¿existen cambios en ese periodo?¿qué relación se le ocurre entre estas estimaciones y lo visto en clases teóricas? Realizar gráficos */
+2.1. Identify the three main trading partners for each country in the years 2000 and 2019, and detail the trade volume. Have there been any changes during this period? What connection do you see between these estimates and the material covered in the lectures? Create graphs.*/
 
-*Ordenamos por exportador, año y volumen de comercio en orden descendente
+* We sort by exporter, year, and trade volume in descending order
+preserve
 keep if year==2000 | year==2019
 bysort year exporter_iso3 (trade): gen rank_imp= _n
 bysort year exporter_iso3 (trade): replace rank_imp= _N - _n + 1
 sort year exporter_iso3 rank_imp
-export excel year exporter_iso3 importer_iso3 trade rank_imp using "TP1_Grupo9.xlsx", sheetmodify sheet("exporter") firstrow(variables)
+export excel year exporter_iso3 importer_iso3 trade rank_imp using "1_Group9.xlsx", sheetmodify sheet("exporter") firstrow(variables)
+restore
 
-use "datos_bilateral", clear
-
+preserve
 keep if year==2000 | year==2019
 bysort year importer_iso3 (trade): gen rank_exp= _n
 bysort year importer_iso3 (trade): replace rank_exp= _N - _n + 1
 sort year importer_iso3 rank_exp
-export excel year importer_iso3 exporter_iso3 trade rank_exp using "TP1_Grupo9.xlsx", sheetmodify sheet("importer") firstrow(variables)
+export excel year importer_iso3 exporter_iso3 trade rank_exp using "1_Group9.xlsx", sheetmodify sheet("importer") firstrow(variables)
+restore
 
-
-/*2.2. El trabajo de Anderson y Van Wincoop (2003) es uno de los primeros en evaluar la relación entre comercio y tamaño de los países. Realizar un análisis de regresión similar al de ese trabajo que explique el volumen de comercio por el tamaño de los países, la distancia y el hecho de ser limítrofes. Analice los resultados y cómo son diferentes estos dependiendo de:
-Si es el PBI o la población de los países la variable de tamaño, ¿y si es el PBI per cápita?
-Si se incluyen efectos fijos por año y/o relación comercial en las regresiones
+/*2.2. The study by Anderson and Van Wincoop (2003) is one of the first to evaluate the relationship between trade and country size. Conduct a regression analysis similar to the one in that study, explaining trade volume based on country size, distance, and whether the countries share a border. Analyze the results and how they differ depending on:
+Whether the size variable is GDP or population—and what happens if it is GDP per capita?
+Whether year and/or trade-relationship fixed effects are included in the regressions.
 */
 
 gen ln_trade = log(trade)
@@ -44,55 +43,54 @@ gen pc_d = gdp_wdi_const_d / pop_d
 gen ln_pc_o = log(pc_o)
 gen ln_pc_d = log(pc_d)
 
-
-*Regresiones por tipo de variable de tamaño
+* Regressions by size variable type
 ssc install estout
 
-*Usando PBI total
+* Using total GDP
 reg ln_trade ln_gdp_o ln_gdp_d ln_distance contiguity
 esttab using "Reg1.txt", replace
-*Usando la población
+* Using the population
 reg ln_trade ln_pop_o ln_pop_d ln_distance contiguity
 esttab using "Reg2.txt", replace
-*Usando el PBI per cápita
+* Using GDP per capita
 reg ln_trade ln_pc_o ln_pc_d ln_distance contiguity
 esttab using "Reg3.txt", replace
 
-*Agregando efectos fijos
+* Adding fixed effects
 
-*Efectos fijos por relación bilateral
+* Bilateral relationship fixed effects
 xtset id_relacion year
-*Usando PBI total
+* Using total GDP
 xtreg ln_trade ln_gdp_o ln_gdp_d ln_distance contiguity, fe
 esttab using "Reg4.txt", replace
-*Usando la población
+* Using the population
 xtreg ln_trade ln_pop_o ln_pop_d ln_distance contiguity, fe
 esttab using "Reg5.txt", replace
-*Usando el PBI per cápita
+* Using GDP per capita
 xtreg ln_trade ln_pc_o ln_pc_d ln_distance contiguity,fe
 esttab using "Reg6.txt", replace
 
-*Efectos fijos por año
-*Usando PBI total
+* Year fixed effects
+* Using total GDP
 areg ln_trade ln_gdp_o ln_gdp_d ln_distance contiguity, absorb(year)
 esttab using "Reg7.txt", replace
-*Usando la población
+* Using the population
 areg ln_trade ln_pop_o ln_pop_d ln_distance contiguity, absorb(year)
 esttab using "Reg8.txt", replace
-*Usando el PBI per cápita
+* Using GDP per capita
 areg ln_trade ln_pc_o ln_pc_d ln_distance contiguity, absorb(year)
 esttab using "Reg9.txt", replace
 
-*Efectos fijos por relación bilateral y año
+* Bilateral relationship and year fixed effects
 ssc install reghdfe, replace
 ssc install ftools, replace
 eststo clear
-*Usando PBI total
+* Using total GDP
 reghdfe ln_trade ln_gdp_o ln_gdp_d ln_distance contiguity, absorb(id_relacion year)
 esttab using "Reg10.txt", replace
-*Usando la población
+* Using the population
 reghdfe ln_trade ln_pop_o ln_pop_d ln_distance contiguity, absorb(id_relacion year)
 esttab using "Reg11.txt", replace
-*Usando el PBI per cápita
+* Using GDP per capita
 reghdfe ln_trade ln_pc_o ln_pc_d ln_distance contiguity, absorb(id_relacion year)
 esttab using "Reg12.txt", replace
